@@ -13,9 +13,13 @@ from protocol.obd2 import (
     read_coolant_temp,
     read_dtcs,
     read_engine_rpm,
+    read_pid,
+    read_supported_pids,
     read_vehicle_speed,
     read_vin,
+    scan_live_data,
 )
+from protocol.pids import PIDS, decode_pid
 from transport.fake import FakeTransport
 
 
@@ -90,3 +94,58 @@ def test_read_vehicle_speed():
 def test_read_coolant_temp():
     with FakeTransport({bytes([0x01, 0x05]): bytes([0x41, 0x05, 0x5A])}) as t:
         assert read_coolant_temp(t) == 50
+
+
+# --------------------------------------------------------------------------- #
+#  J1979 PID table (formulas ported from obd_formulas.c)
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "pid, data, expected",
+    [
+        (0x04, b"\x7f", 127 * 100 / 255),    # engine load %
+        (0x05, b"\x5a", 50),                  # coolant temp degC
+        (0x06, b"\x80", 0.0),                 # fuel trim % (0x80 -> 0)
+        (0x0A, b"\x64", 300),                 # fuel pressure kPa (100*3)
+        (0x0C, b"\x1a\xf8", 1726.0),          # rpm
+        (0x0D, b"\x50", 80),                  # speed km/h
+        (0x0E, b"\x80", 0.0),                 # timing advance deg (128/2-64)
+        (0x10, b"\x0a\x00", 25.6),            # MAF g/s (2560/100)
+        (0x11, b"\xff", 100.0),               # throttle % (255*100/255)
+        (0x42, b"\x2f\xda", 12.250),          # module voltage V (12250/1000)
+        (0x62, b"\x7d", 0),                   # torque % (125-125)
+    ],
+)
+def test_pid_formulas(pid, data, expected):
+    assert decode_pid(pid, data) == pytest.approx(expected)
+
+
+def test_read_pid_via_transport():
+    with FakeTransport({bytes([0x01, 0x0C]): bytes([0x41, 0x0C, 0x1A, 0xF8])}) as t:
+        assert read_pid(t, 0x0C) == 1726.0
+
+
+def test_read_supported_pids():
+    # Advertise PIDs 0x0C and 0x0D supported, no further range.
+    bits = (1 << (31 - 11)) | (1 << (31 - 12))  # PID 0x0C (i=11), 0x0D (i=12)
+    resp = bytes([0x41, 0x00]) + bits.to_bytes(4, "big")
+    with FakeTransport({bytes([0x01, 0x00]): resp}) as t:
+        assert read_supported_pids(t) == {0x0C, 0x0D}
+
+
+def test_scan_live_data():
+    responder = {
+        bytes([0x01, 0x00]): bytes([0x41, 0x00])
+        + ((1 << (31 - 11)) | (1 << (31 - 4))).to_bytes(4, "big"),  # PID 0x0C, 0x05
+        bytes([0x01, 0x0C]): bytes([0x41, 0x0C, 0x1A, 0xF8]),
+        bytes([0x01, 0x05]): bytes([0x41, 0x05, 0x5A]),
+    }
+    with FakeTransport(responder) as t:
+        data = scan_live_data(t)
+    assert data["Engine RPM"] == "1726 rpm"
+    assert data["Coolant Temperature"] == "50 degC"
+
+
+def test_every_pid_decodes_without_error():
+    # Each decoder must handle a full-length input without raising.
+    for pid, spec in PIDS.items():
+        assert decode_pid(pid, b"\x00" * spec.n_bytes) is not None

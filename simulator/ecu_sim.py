@@ -25,15 +25,29 @@ ECU_TO_TESTER = 0x7E8
 
 DEFAULT_VIN = "1HGCM82633A004352"  # a valid 17-char VIN (Honda Accord)
 
-# A tiny Mode 01 table. Values chosen to decode to round numbers:
-#   RPM     = ((0x1A*256)+0xF8)/4 = 1726 rpm
-#   Speed   = 0x50               = 80 km/h
-#   Coolant = 0x5A - 40          = 50 degC
+# A small Mode 01 table. Values chosen to decode to round numbers:
+#   RPM      = ((0x1A*256)+0xF8)/4 = 1726 rpm
+#   Speed    = 0x50                = 80 km/h
+#   Coolant  = 0x5A - 40           = 50 degC
+#   Load     = 0x7F * 100/255      ~= 49.8 %
+#   Throttle = 0x33 * 100/255      ~= 20 %
 _MODE01 = {
+    0x04: bytes([0x7F]),
+    0x05: bytes([0x5A]),
     0x0C: bytes([0x1A, 0xF8]),
     0x0D: bytes([0x50]),
-    0x05: bytes([0x5A]),
+    0x0F: bytes([0x46]),        # intake temp = 0x46 - 40 = 30 degC
+    0x11: bytes([0x33]),
 }
+
+
+def _supported_bitmap(base: int, supported: set[int]) -> bytes:
+    """4-byte Mode 01 support bitmask for the range (base+1 .. base+0x20)."""
+    bits = 0
+    for i in range(32):
+        if (base + i + 1) in supported:
+            bits |= 1 << (31 - i)
+    return bits.to_bytes(4, "big")
 
 
 class SimulatedEcu:
@@ -127,9 +141,14 @@ class SimulatedEcu:
             return bytes(body)
 
         if mode == 0x01 and len(req) >= 2:
-            value = _MODE01.get(req[1])
+            pid = req[1]
+            if pid in (0x00, 0x20, 0x40):
+                # Supported-PID bitmask; advertise the next range only if we have
+                # PIDs beyond it. Here all our PIDs live in the 0x01..0x20 range.
+                return bytes([0x41, pid]) + _supported_bitmap(pid, set(_MODE01))
+            value = _MODE01.get(pid)
             if value is not None:
-                return bytes([0x41, req[1]]) + value
+                return bytes([0x41, pid]) + value
 
         # Anything else: negative response 7F <mode> 12 (subFunctionNotSupported).
         return bytes([0x7F, mode, 0x12])
