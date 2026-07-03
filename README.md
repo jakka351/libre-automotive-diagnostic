@@ -1,3 +1,6 @@
+<img width="25%" height="25%" align="right" alt="image" src="https://github.com/user-attachments/assets/591846d7-156b-445f-b379-64555910cd02" />
+
+
 # libre-automotive-diagnostic
 
 ## An open-source automotive diagnostic tool supporting OBD2, DTCs, and brand-specific commands over SocketCAN or ELM327.
