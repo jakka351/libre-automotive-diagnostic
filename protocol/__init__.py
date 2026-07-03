@@ -5,7 +5,8 @@ Sits on top of a transport backend and speaks in vehicle terms:
     from protocol.obd2 import J1979          # all 10 OBD-II modes
     from protocol.uds import UDSClient        # full ISO 14229 service set
     from protocol.dtc_library import describe  # DTC definitions
+    from protocol.vin import decode_vin        # VIN -> VinInfo
 """
-from . import dtc, dtc_library, obd2, pids, uds  # noqa: F401
+from . import dtc, dtc_library, obd2, pids, uds, vin  # noqa: F401
 
-__all__ = ["dtc", "dtc_library", "obd2", "pids", "uds"]
+__all__ = ["dtc", "dtc_library", "obd2", "pids", "uds", "vin"]
