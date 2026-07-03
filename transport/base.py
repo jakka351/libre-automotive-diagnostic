@@ -74,6 +74,15 @@ class Transport(ABC):
             the vehicle did not answer — this is *not* an error and must not raise.
         """
 
+    def receive(self, *, timeout: float = 1.0) -> list[EcuResponse]:
+        """Read a further response without sending anything.
+
+        Needed for UDS response-pending (NRC 0x78): after a request the ECU may
+        send ``7F <sid> 78`` and then the real answer, which must be read without
+        re-sending. Backends that cannot support this return an empty list.
+        """
+        return []
+
     # -- context-manager sugar: ``with SomeTransport(...) as t:`` --------------
     def __enter__(self) -> "Transport":
         self.open()

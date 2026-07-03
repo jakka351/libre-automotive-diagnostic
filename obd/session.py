@@ -16,8 +16,9 @@ from transport.base import Transport
 class DiagnosticSession:
     """A high-level diagnostic API over one transport backend."""
 
-    def __init__(self, transport: Transport):
+    def __init__(self, transport: Transport, *, make: str | None = None):
         self._t = transport
+        self.make = make
         self._open = False
 
     # -- lifecycle -----------------------------------------------------------
@@ -46,8 +47,21 @@ class DiagnosticSession:
         """Return ``{PID name: "value unit"}`` for every supported, known PID."""
         return obd2.scan_live_data(self._t)
 
-    def read_dtcs(self) -> list[str]:
-        return obd2.read_dtcs(self._t)
+    def read_dtcs(self, *, detailed: bool = False):
+        """Stored DTCs (Mode 03). With detailed=True, attach library definitions."""
+        codes = obd2.read_dtcs(self._t)
+        return obd2.describe_dtcs(codes, self.make) if detailed else codes
+
+    # -- subsystem clients ---------------------------------------------------
+    def j1979(self):
+        """Full SAE J1979 OBD-II client (all 10 modes) over this transport."""
+        return obd2.J1979(self._t, make=self.make)
+
+    def uds(self):
+        """Full ISO 14229 UDS client over this transport."""
+        from protocol.uds import UDSClient
+
+        return UDSClient(self._t)
 
     # -- factories -----------------------------------------------------------
     @classmethod

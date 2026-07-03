@@ -114,3 +114,19 @@ class SocketCanTransport(Transport):
         if not data:
             return []
         return [EcuResponse(source=rx, data=bytes(data))]
+
+    def receive(self, *, timeout: float = 1.0) -> list[EcuResponse]:
+        # Read a further reassembled reply without sending (UDS 0x78 pending).
+        if self._sock is None:
+            raise TransportError("transport not open — call open() first")
+        rx = OBD_ECU_RESPONSE_BASE + self.ecu
+        ready, _, _ = select.select([self._sock], [], [], timeout)
+        if not ready:
+            return []
+        try:
+            data = self._sock.recv()
+        except OSError as exc:  # pragma: no cover - environment dependent
+            raise TransportError(f"ISO-TP recv failed: {exc}") from exc
+        if not data:
+            return []
+        return [EcuResponse(source=rx, data=bytes(data))]

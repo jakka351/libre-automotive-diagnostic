@@ -96,6 +96,18 @@ class Elm327Transport(Transport):
         raw = self._send_line(payload.hex().upper())
         return _parse_elm_response(raw)
 
+    def receive(self, *, timeout: float = 1.0) -> list[EcuResponse]:
+        # The ELM327 collects an ECU's full response (incl. handling 0x78 pending)
+        # before returning its prompt, so a follow-up read is normally empty. We
+        # still read one more prompt-terminated block in case the buffer has more.
+        if self._ser is None:
+            raise TransportError("transport not open — call open() first")
+        try:
+            data = self._ser.read_until(b">").decode("ascii", errors="ignore")
+        except Exception:  # pragma: no cover - serial timeout/close
+            return []
+        return _parse_elm_response(data)
+
     # -- serial helpers ------------------------------------------------------
     def _send_line(self, command: str) -> str:
         self._ser.write((command + "\r").encode("ascii"))
