@@ -1,6 +1,13 @@
 # libre-automotive-diagnostic
 
-## An open-source automotive diagnostic tool using ELM327, supporting OBD2, DTCs, and brand-specific commands.
+## An open-source automotive diagnostic tool supporting OBD2, DTCs, and brand-specific commands over SocketCAN or ELM327.
+
+> **Architecture (in progress):** the diagnostic core is moving to a
+> backend-neutral transport layer with **SocketCAN + kernel ISO-TP** as the
+> first-class path and **ELM327** as a secondary backend, feeding a single
+> OBD-II (J1979) / UDS (ISO 14229) protocol layer. See **[SOCKETCAN.md](SOCKETCAN.md)**.
+> The earlier C `HardwareSocketCAN` prototype (which did not compile) is retained
+> for reference under [`archive/hardware-c/`](archive/hardware-c/ARCHIVE_NOTE.md).
 
 ## 🔧 Linux installation (standalone binary)
 
