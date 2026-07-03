@@ -22,6 +22,7 @@ from enum import IntEnum
 from transport.base import Transport
 
 from .dtc import decode_dtc
+from .nrc import NRC, RESPONSE_PENDING  # canonical 0x7F code table
 
 SUPPRESS_POS_RSP_BIT = 0x80  # OR into a sub-function byte to suppress the positive reply
 
@@ -103,57 +104,9 @@ class CommunicationControlType(IntEnum):
     DISABLE_RX_TX = 0x03
 
 
-# --------------------------------------------------------------------------- #
-#  Negative Response Codes (ISO 14229-1 Table)
-# --------------------------------------------------------------------------- #
-NRC: dict[int, str] = {
-    0x10: "generalReject",
-    0x11: "serviceNotSupported",
-    0x12: "subFunctionNotSupported",
-    0x13: "incorrectMessageLengthOrInvalidFormat",
-    0x14: "responseTooLong",
-    0x21: "busyRepeatRequest",
-    0x22: "conditionsNotCorrect",
-    0x24: "requestSequenceError",
-    0x25: "noResponseFromSubnetComponent",
-    0x26: "failurePreventsExecutionOfRequestedAction",
-    0x31: "requestOutOfRange",
-    0x33: "securityAccessDenied",
-    0x34: "authenticationRequired",
-    0x35: "invalidKey",
-    0x36: "exceededNumberOfAttempts",
-    0x37: "requiredTimeDelayNotExpired",
-    0x38: "secureDataTransmissionRequired",
-    0x39: "secureDataTransmissionNotAllowed",
-    0x3A: "secureDataVerificationFailed",
-    0x70: "uploadDownloadNotAccepted",
-    0x71: "transferDataSuspended",
-    0x72: "generalProgrammingFailure",
-    0x73: "wrongBlockSequenceCounter",
-    0x78: "requestCorrectlyReceived-ResponsePending",
-    0x7E: "subFunctionNotSupportedInActiveSession",
-    0x7F: "serviceNotSupportedInActiveSession",
-    0x81: "rpmTooHigh",
-    0x82: "rpmTooLow",
-    0x83: "engineIsRunning",
-    0x84: "engineIsNotRunning",
-    0x85: "engineRunTimeTooLow",
-    0x86: "temperatureTooHigh",
-    0x87: "temperatureTooLow",
-    0x88: "vehicleSpeedTooHigh",
-    0x89: "vehicleSpeedTooLow",
-    0x8A: "throttlePedalTooHigh",
-    0x8B: "throttlePedalTooLow",
-    0x8C: "transmissionRangeNotInNeutral",
-    0x8D: "transmissionRangeNotInGear",
-    0x8F: "brakeSwitchesNotClosed",
-    0x90: "shifterLeverNotInPark",
-    0x91: "torqueConverterClutchLocked",
-    0x92: "voltageTooHigh",
-    0x93: "voltageTooLow",
-}
-
-RESPONSE_PENDING = 0x78
+# Negative Response Codes (0x7F) live in protocol/nrc.py — the canonical table
+# (ISO 14229-1 + legacy KWP block-transfer codes). NRC and RESPONSE_PENDING are
+# imported above and re-used here so there is one source of truth.
 
 # DTC status bit meanings (ISO 14229-1 Annex D.2).
 _STATUS_BITS = (
